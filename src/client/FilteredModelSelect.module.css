@@ -69,9 +69,14 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-.filter {
+.filterWrap {
+  position: relative;
   margin: 4px;
-  padding: 6px 8px;
+}
+
+.filter {
+  width: 100%;
+  padding: 6px 26px 6px 8px;
   border: 1px solid var(--dsw-alias-border-inverted);
   border-radius: 8px;
   background: transparent;
@@ -79,6 +84,7 @@
   font: inherit;
   font-size: 13px;
   outline: none;
+  box-sizing: border-box;
 }
 
 .filter::placeholder {
@@ -87,6 +93,31 @@
 
 .filter:focus {
   border-color: var(--dsw-alias-border-l3);
+}
+
+.filterClear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.filterClear:hover,
+.filterClear:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 .list {
@@ -120,14 +151,15 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
-.option:hover:not(:disabled),
+.option:hover,
 .option:focus-visible {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.option:disabled {
+.option.disabled {
   color: var(--dsw-alias-label-dimmed);
   cursor: default;
 }
@@ -156,6 +188,36 @@
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.star {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.star:hover,
+.star:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.star.starred {
+  color: var(--dsw-alias-state-warning-primary);
+}
+
+.star.starred:hover,
+.star.starred:focus-visible {
+  color: var(--dsw-alias-state-warning-primary);
 }
 
 .check {

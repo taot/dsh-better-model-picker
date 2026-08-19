@@ -2,10 +2,13 @@
  * FilteredModelSelect: the enhanced `conversation.input.model` seat occupant.
  *
  * A single flat list of models (their provider group shown as a section
- * heading) with a text filter at the top. Filtering is a case-insensitive
- * substring match over the model name and model id. Data and submission ride
- * the same per-session directory store as the shipped selector, so there is
- * one source of truth shared with the /model popup.
+ * heading) with a text filter at the top and per-row star pinning. Starred
+ * models always render at the top (a "Starred" section), regardless of the
+ * active filter; stars persist across refreshes and restarts in the browser
+ * (`localStorage`, keyed by provider/model id pair). Filtering is a
+ * case-insensitive substring match over the model name and model id. Data and
+ * submission ride the same per-session directory store as the shipped
+ * selector, so there is one source of truth shared with the /model popup.
  */
 import {
   useEffect, useRef, useState, useSyncExternalStore,
@@ -21,10 +24,40 @@ interface Choice {
   model: ModelProviderGroup['models'][number]
 }
 
+/** Persistence key for the starred provider/model id list. */
+const STARRED_STORAGE_KEY = 'dsh-better-model-picker.starred'
+
 /** A case-insensitive substring match over several fields. */
 function matches(text: string, query: string): boolean {
   if (query === '') return true
   return text.toLowerCase().includes(query.toLowerCase())
+}
+
+/** The opaque identity of one provider/model pair. */
+function starKey(groupId: string, modelId: string): string {
+  return `${groupId}/${modelId}`
+}
+
+/** Read the persisted starred list, falling back to [] and tolerating any failure. */
+function loadStarred(): string[] {
+  try {
+    if (typeof localStorage === 'undefined') return []
+    const raw = localStorage.getItem(STARRED_STORAGE_KEY)
+    if (raw === null) return []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((entry): entry is string => typeof entry === 'string')
+  } catch {
+    return []
+  }
+}
+
+/** Persist the starred list, tolerating storage failures silently. */
+function saveStarred(ids: string[]): void {
+  try {
+    if (typeof localStorage === 'undefined') return
+    localStorage.setItem(STARRED_STORAGE_KEY, JSON.stringify(ids))
+  } catch { /* persistence is best-effort */ }
 }
 
 /**
@@ -42,6 +75,7 @@ export function FilteredModelSelect(
   )
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [starred, setStarred] = useState<string[]>(loadStarred)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const filterRef = useRef<HTMLInputElement | null>(null)
@@ -79,6 +113,12 @@ export function FilteredModelSelect(
   const filtered = q === '' ? choices : choices.filter(c =>
     matches(c.model.name, q) || matches(c.model.id, q),
   )
+  // Starred always on top: partition the filtered list, preserving order within
+  // each partition and hoisting starred items above provider groups.
+  const starredIds = new Set(starred)
+  const starredChoices = filtered.filter(c => starredIds.has(starKey(c.group.id, c.model.id)))
+  const unstarredChoices = filtered.filter(c => !starredIds.has(starKey(c.group.id, c.model.id)))
+
   const selectedChoice = choices.find(c =>
     c.group.id === current?.provider && c.model.id === current.model,
   )
@@ -104,10 +144,61 @@ export function FilteredModelSelect(
     })
   }
 
+  const clearFilter = (): void => {
+    setQuery('')
+    filterRef.current?.focus()
+  }
+
+  const toggleStar = (choice: Choice): void => {
+    const key = starKey(choice.group.id, choice.model.id)
+    const next = starredIds.has(key)
+      ? starred.filter(id => id !== key)
+      : [...starred, key]
+    setStarred(next)
+    saveStarred(next)
+  }
+
   const onKeyDown = (event: { key: string }): void => {
     if (event.key === 'Escape' && open) {
       close(true)
     }
+  }
+
+  const renderChoice = (choice: Choice, heading: boolean) => {
+    const selected = current?.provider === choice.group.id && current.model === choice.model.id
+    const isStarred = starredIds.has(starKey(choice.group.id, choice.model.id))
+    return (
+      <div key={`${choice.group.id}/${choice.model.id}`}>
+        {heading && <div className={css.groupTitle}>{choice.group.name}</div>}
+        <div
+          role="menuitemradio"
+          aria-checked={selected}
+          className={css.option + (selected ? ` ${css.selected}` : '') + (busy ? ` ${css.disabled}` : '')}
+          title={choice.model.name}
+          tabIndex={busy ? -1 : 0}
+          onClick={() => { if (!busy) choose(choice) }}
+        >
+          <span className={css.optionCopy}>
+            <span className={css.modelName}>{choice.model.name}</span>
+            {choice.model.description !== undefined && (
+              <span className={css.description}>{choice.model.description}</span>
+            )}
+          </span>
+          <button
+            type="button"
+            className={css.star + (isStarred ? ` ${css.starred}` : '')}
+            aria-pressed={isStarred}
+            aria-label={isStarred ? 'Unstar' : 'Star'}
+            title={isStarred ? 'Unstar' : 'Star'}
+            disabled={busy}
+            onClick={(e) => { e.stopPropagation(); toggleStar(choice) }}
+          >
+            <span aria-hidden>{isStarred ? '★' : '☆'}</span>
+          </button>
+          <span className={css.check}>{selected ? '✓' : ''}</span>
+        </div>
+      </div>
+    )
   }
 
   let section: Choice['group'] | null = null
@@ -131,15 +222,28 @@ export function FilteredModelSelect(
 
       {open && (
         <div className={css.menu} role="menu" aria-label={t('menu.aria')} aria-busy={busy || state.status === 'loading'}>
-          <input
-            ref={filterRef}
-            type="text"
-            className={css.filter}
-            placeholder="Filter models…"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => { e.stopPropagation() }}
-          />
+          <div className={css.filterWrap}>
+            <input
+              ref={filterRef}
+              type="text"
+              className={css.filter}
+              placeholder="Filter models…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { e.stopPropagation() }}
+            />
+            {query !== '' && (
+              <button
+                type="button"
+                className={css.filterClear}
+                aria-label="Clear filter"
+                title="Clear filter"
+                onClick={clearFilter}
+              >
+                <span aria-hidden>×</span>
+              </button>
+            )}
+          </div>
 
           {state.status === 'loading' && <div className={css.status}>{t('status.loading')}</div>}
           {state.error !== null && (
@@ -150,33 +254,17 @@ export function FilteredModelSelect(
           )}
 
           <div className={css.list}>
-            {filtered.map((choice) => {
+            {starredChoices.length > 0 && (
+              <div className={css.groupTitle}>{'Starred'}</div>
+            )}
+            {starredChoices.map(choice => renderChoice(choice, false))}
+
+            {unstarredChoices.map((choice) => {
               const heading = section === choice.group ? null : choice.group
               section = choice.group
-              const selected = current?.provider === choice.group.id && current.model === choice.model.id
-              return (
-                <div key={`${choice.group.id}/${choice.model.id}`}>
-                  {heading !== null && <div className={css.groupTitle}>{heading.name}</div>}
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={selected}
-                    className={css.option + (selected ? ` ${css.selected}` : '')}
-                    title={choice.model.name}
-                    disabled={busy}
-                    onClick={() => choose(choice)}
-                  >
-                    <span className={css.optionCopy}>
-                      <span className={css.modelName}>{choice.model.name}</span>
-                      {choice.model.description !== undefined && (
-                        <span className={css.description}>{choice.model.description}</span>
-                      )}
-                    </span>
-                    <span className={css.check}>{selected ? '✓' : ''}</span>
-                  </button>
-                </div>
-              )
+              return renderChoice(choice, heading !== null)
             })}
+
             {filtered.length === 0 && state.status === 'ready' && (
               <div className={css.empty}>{q === '' ? t('empty.models') : 'No matching models.'}</div>
             )}
