@@ -268,7 +268,14 @@ export function FilteredModelSelect(
             {starredChoices.length > 0 && (
               <div className={css.groupTitle}>{'Starred'}</div>
             )}
-            {starredChoices.map(choice => renderChoice(choice, false))}
+            {(() => {
+              let starredSection: Choice['group'] | null = null
+              return starredChoices.map((choice) => {
+                const heading = starredSection === choice.group ? null : choice.group
+                starredSection = choice.group
+                return renderChoice(choice, heading !== null)
+              })
+            })()}
 
             {unstarredChoices.map((choice) => {
               const heading = section === choice.group ? null : choice.group
