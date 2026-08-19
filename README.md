@@ -1,12 +1,16 @@
 # dsh-better-model-picker
 
 An installable **bundle** for the DeepSeek Harness (DSH) Web GUI that replaces
-the composer's model selector with one that adds a **text filter**.
+the composer's model selector with an upgraded version. It shares the session's
+model directory, so models picked here stay in sync with the `/model` popup.
 
-The drop-down keeps the same data source as the shipped selector — the
-session's shared model directory — so a model you pick here is what the
-`/model` popup shows next, and vice versa. The only change is a filter box at
-the top of the menu: typing narrows the list by model name or id.
+## Features
+
+- **Filter** — a text box that narrows the model list as you type, using
+  space-separated terms.
+- **Star-pin** — an ☆/★ toggle on each model. Starred models stay pinned to the
+  top under a "Starred" section with their provider headings, and persist
+  across refresh and restart.
 
 ## Install
 
