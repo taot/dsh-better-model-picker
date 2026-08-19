@@ -1,0 +1,20 @@
+# dsh-better-model-picker bundle patch.
+#
+# A bundle ships a configuration layer: the manifest's `dsh.bundle.patch`
+# points here, and any profile that lists this package in `dsh.profile.bundles`
+# applies this layer. `dsh plugin add` does that automatically.
+#
+# One row, read two ways:
+#   * HOST half  — the loader mounts `main` (lib/index.js); its apply() is a
+#     no-op because selection already rides the shipped session RPCs.
+#   * CLIENT half — client-modules scans loader entries for packages declaring
+#     `dsh.client` and serves this one's browser bundle (lib/client.js) at
+#     /plugins/dsh-better-model-picker/client.js.
+#
+# The client half registers as the `conversation.input.model` occupant. It does
+# not disable the shipped ui-model-selection row: that plugin keeps owning the
+# /model popup and the `model` locale namespace, and both surfaces share one
+# directory service (ctx.modelDirectories).
+- insert:
+    - id: better-model-picker
+      name: dsh-better-model-picker

@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@deepseek-ai/cordis": ["/home/taot/src-repos/deepseek-harness/packages/cordis/src/index.ts"],
+      "@deepseek-ai/dsh-api-remotes/client": ["/home/taot/src-repos/deepseek-harness/packages/api/remotes/src/client/index.ts"],
+      "@deepseek-ai/dsh-client-runtime/client": ["/home/taot/src-repos/deepseek-harness/packages/client/runtime/src/client/index.ts"],
+      "@deepseek-ai/dsh-client-ui-slots": ["/home/taot/src-repos/deepseek-harness/packages/client/ui-slots/src/index.ts"],
+      "@deepseek-ai/dsh-client-ui-conversation/client": ["/home/taot/src-repos/deepseek-harness/packages/client/ui-conversation/src/client/index.ts"],
+      "@deepseek-ai/dsh-client-ui-model-selection/client": ["/home/taot/src-repos/deepseek-harness/packages/client/ui-model-selection/src/client/index.ts"]
+    }
+  },
+  "include": ["src"]
+}
