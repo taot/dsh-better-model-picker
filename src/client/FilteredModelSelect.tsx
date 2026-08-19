@@ -5,9 +5,10 @@
  * heading) with a text filter at the top and per-row star pinning. Starred
  * models always render at the top (a "Starred" section), regardless of the
  * active filter; stars persist across refreshes and restarts in the browser
- * (`localStorage`, keyed by provider/model id pair). Filtering is a
- * case-insensitive substring match over the model name and model id. Data and
- * submission ride the same per-session directory store as the shipped
+ * (`localStorage`, keyed by provider/model id pair). Filtering splits the query
+ * on whitespace into terms (AND semantics) and matches each term,
+ * case-insensitively, against the model name/id and the provider name/id. Data
+ * and submission ride the same per-session directory store as the shipped
  * selector, so there is one source of truth shared with the /model popup.
  */
 import {
@@ -27,10 +28,22 @@ interface Choice {
 /** Persistence key for the starred provider/model id list. */
 const STARRED_STORAGE_KEY = 'dsh-better-model-picker.starred'
 
-/** A case-insensitive substring match over several fields. */
-function matches(text: string, query: string): boolean {
-  if (query === '') return true
-  return text.toLowerCase().includes(query.toLowerCase())
+/** Split a query into non-empty, lower-cased terms on whitespace. */
+function termsOf(query: string): string[] {
+  return query.trim().toLowerCase().split(/\s+/).filter(term => term !== '')
+}
+
+/** Whether one term matches any searchable field of a choice. */
+function termMatches(choice: Choice, term: string): boolean {
+  return choice.group.name.toLowerCase().includes(term)
+    || choice.group.id.toLowerCase().includes(term)
+    || choice.model.name.toLowerCase().includes(term)
+    || choice.model.id.toLowerCase().includes(term)
+}
+
+/** Every term must match at least one field (case-insensitive substring). */
+function matches(choice: Choice, query: string): boolean {
+  return termsOf(query).every(term => termMatches(choice, term))
 }
 
 /** The opaque identity of one provider/model pair. */
@@ -110,9 +123,7 @@ export function FilteredModelSelect(
   const choices: Choice[] = groups.flatMap(group =>
     group.models.map(model => ({ group, model })),
   )
-  const filtered = q === '' ? choices : choices.filter(c =>
-    matches(c.model.name, q) || matches(c.model.id, q),
-  )
+  const filtered = q === '' ? choices : choices.filter(c => matches(c, q))
   // Starred always on top: partition the filtered list, preserving order within
   // each partition and hoisting starred items above provider groups.
   const starredIds = new Set(starred)
